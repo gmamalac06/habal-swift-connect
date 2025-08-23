@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const AdminPanel = () => {
@@ -57,8 +58,9 @@ const AdminPanel = () => {
   const refresh = async () => {
     const { data: drv } = await supabase.from("drivers").select("*").eq("approval_status", "pending");
     setPendingDrivers(drv ?? []);
-    const ps = await supabase.from("pricing_settings").select("*").maybeSingle?.();
-    setPricing((ps as any)?.data ?? ps ?? null);
+  // Fetch pricing settings (maybeSingle returns the row or null)
+  const { data: ps } = await supabase.from("pricing_settings").select("*").maybeSingle();
+  setPricing(ps ?? null);
     const { data: pays } = await supabase
       .from('payments')
       .select('*')
@@ -72,21 +74,21 @@ const AdminPanel = () => {
     // First, let's test a simple query to see if we can access the table at all
     console.log('Testing basic table access...');
     
-    // Test 1: Simple profiles query
-    const { data: testProfiles, error: testError } = await supabase
+    // Test 1: Simple profiles query (use exact count to surface row counts)
+    const { data: testProfiles, error: testError, count: testProfilesCount } = await supabase
       .from('profiles')
-      .select('count')
+      .select('*', { count: 'exact' })
       .limit(1);
-    
-    console.log('Test profiles query result:', { data: testProfiles, error: testError });
-    
-    // Test 2: Simple user_roles query
-    const { data: testRoles, error: testRolesError } = await supabase
+
+    console.log('Test profiles query result:', { data: testProfiles, error: testError, count: testProfilesCount });
+
+    // Test 2: Simple user_roles query (use exact count)
+    const { data: testRoles, error: testRolesError, count: testRolesCount } = await supabase
       .from('user_roles')
-      .select('count')
+      .select('*', { count: 'exact' })
       .limit(1);
-    
-    console.log('Test user_roles query result:', { data: testRoles, error: testRolesError });
+
+    console.log('Test user_roles query result:', { data: testRoles, error: testRolesError, count: testRolesCount });
     
     // Get all profiles (this should work since profiles are created for all users)
     const { data: profiles, error: profilesError } = await supabase
@@ -112,14 +114,14 @@ const AdminPanel = () => {
     }
     
     // Get all drivers to determine who is a driver
-    const { data: drivers, error: driversError } = await supabase
+    const { data: driversData, error: driversError } = await supabase
       .from('drivers')
       .select('user_id, approval_status');
-    
+
     if (driversError) {
       console.error('Error loading drivers:', driversError);
     } else {
-      console.log('Drivers loaded:', drivers);
+      console.log('Drivers loaded:', driversData);
     }
     
     if (profiles && profiles.length > 0) {
@@ -136,9 +138,9 @@ const AdminPanel = () => {
       
       // Create a map of driver status
       const driverMap = new Map();
-      if (drivers) {
-        console.log('Processing', drivers.length, 'drivers');
-        drivers.forEach(d => {
+      if (driversData) {
+        console.log('Processing', driversData.length, 'drivers');
+        driversData.forEach(d => {
           driverMap.set(d.user_id, d.approval_status);
         });
       }
@@ -200,23 +202,23 @@ const AdminPanel = () => {
       setUsers(usersWithRoles);
       
       // Calculate stats - simplified
-      let drivers = 0;
-      let riders = 0;
-      let admins = 0;
-      
+      let driversCount = 0;
+      let ridersCount = 0;
+      let adminsCount = 0;
+
       for (let i = 0; i < usersWithRoles.length; i++) {
         const user = usersWithRoles[i];
         const role = user.role || 'rider';
-        
-        if (role === 'driver') drivers++;
-        else if (role === 'admin') admins++;
-        else riders++;
+
+        if (role === 'driver') driversCount++;
+        else if (role === 'admin') adminsCount++;
+        else ridersCount++;
       }
-      
+
       const total = usersWithRoles.length;
-      
-      console.log('Calculated stats:', { drivers, riders, admins, total });
-      setUserStats({ totalDrivers: drivers, totalRiders: riders, totalUsers: total });
+
+      console.log('Calculated stats:', { drivers: driversCount, riders: ridersCount, admins: adminsCount, total });
+      setUserStats({ totalDrivers: driversCount, totalRiders: ridersCount, totalUsers: total });
     } else {
       console.log('No profiles found');
       
@@ -341,22 +343,55 @@ const AdminPanel = () => {
 
   const viewUserDetails = async (userId: string) => {
     try {
-      // Get comprehensive user data
-      const { data: userData } = await supabase
+      // Fetch role, profile, and driver data separately to avoid join errors
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
-        .select(`
-          user_id,
-          role,
-          profiles!inner(full_name, phone, created_at),
-          drivers(vehicle_make, vehicle_model, plate_number, license_number, approval_status, or_document_url, cr_document_url)
-        `)
+        .select('user_id, role')
         .eq('user_id', userId)
-        .single();
-      
-      if (userData) {
-        setSelectedUser(userData);
-        setShowUserDetails(true);
+        .maybeSingle();
+
+      if (roleError) throw roleError;
+
+      // Try to select email and avatar if the column exists; fall back if it doesn't
+      let profileData = null;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, phone, created_at, avatar_url, email')
+          .eq('id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        profileData = data ?? null;
+      } catch (err) {
+        // Maybe the email column doesn't exist on older DBs — retry without it
+        console.warn('Profile select with email/avatar failed, retrying without email/avatar', err);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, phone, created_at, avatar_url')
+          .eq('id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        profileData = data ?? null;
       }
+
+      const { data: driverData, error: driverError } = await supabase
+        .from('drivers')
+        .select('vehicle_make, vehicle_model, plate_number, license_number, approval_status, or_document_url, cr_document_url, user_id, id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (driverError) throw driverError;
+
+      const combined = {
+        user_id: userId,
+        role: (roleData && (roleData as any).role) || 'rider',
+  profiles: profileData ?? null,
+  // driverData may be a single object (maybeSingle). Convert to array so the UI which expects an array works.
+  drivers: driverData ? [driverData] : [],
+      };
+
+      setSelectedUser(combined);
+      setShowUserDetails(true);
     } catch (error: any) {
       toast({ title: "Failed to load user details", description: error.message, variant: "destructive" });
     }
@@ -763,13 +798,26 @@ const AdminPanel = () => {
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Full Name</Label>
-                      <p className="text-gray-900">{selectedUser.profiles?.full_name || 'N/A'}</p>
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-16 w-16">
+                        {selectedUser.profiles?.avatar_url ? (
+                          <AvatarImage src={selectedUser.profiles.avatar_url} alt="Avatar" />
+                        ) : (
+                          <AvatarFallback>{(selectedUser.profiles?.full_name || 'U').charAt(0)}</AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Full Name</Label>
+                        <p className="text-gray-900">{selectedUser.profiles?.full_name || 'N/A'}</p>
+                      </div>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Phone</Label>
                       <p className="text-gray-900">{selectedUser.profiles?.phone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Email</Label>
+                      <p className="text-gray-900">{selectedUser.profiles?.email || 'N/A'}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">User ID</Label>
@@ -797,6 +845,15 @@ const AdminPanel = () => {
                   <div>
                     <h3 className="text-lg font-semibold mb-3">Driver Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Vehicle photo preview if available */}
+                      {selectedUser.drivers[0].vehicle_photo_url && (
+                        <div className="md:col-span-2">
+                          <Label className="text-sm font-medium text-gray-600">Vehicle Photo</Label>
+                          <div className="mt-2">
+                            <img src={selectedUser.drivers[0].vehicle_photo_url} alt="Vehicle" className="h-40 w-full object-cover rounded" />
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <Label className="text-sm font-medium text-gray-600">Vehicle</Label>
                         <p className="text-gray-900">{selectedUser.drivers[0].vehicle_make} {selectedUser.drivers[0].vehicle_model}</p>
@@ -823,26 +880,34 @@ const AdminPanel = () => {
                     {/* Driver Documents */}
                     <div className="mt-4">
                       <Label className="text-sm font-medium text-gray-600">Documents</Label>
-                      <div className="flex gap-3 mt-2">
+                      <div className="flex gap-3 mt-2 items-start">
                         {selectedUser.drivers[0].or_document_url && (
-                          <a 
-                            href={selectedUser.drivers[0].or_document_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
-                          >
-                            📄 Official Receipt (OR)
-                          </a>
+                          <div>
+                            {/\.(png|jpe?g|gif|webp)$/i.test(selectedUser.drivers[0].or_document_url) ? (
+                              <a href={selectedUser.drivers[0].or_document_url} target="_blank" rel="noopener noreferrer">
+                                <img src={selectedUser.drivers[0].or_document_url} alt="OR" className="h-24 w-32 object-cover rounded" />
+                                <div className="text-sm text-blue-600">Official Receipt (OR)</div>
+                              </a>
+                            ) : (
+                              <a href={selectedUser.drivers[0].or_document_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline">
+                                📄 Official Receipt (OR)
+                              </a>
+                            )}
+                          </div>
                         )}
                         {selectedUser.drivers[0].cr_document_url && (
-                          <a 
-                            href={selectedUser.drivers[0].cr_document_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
-                          >
-                            📄 Certificate of Registration (CR)
-                          </a>
+                          <div>
+                            {/\.(png|jpe?g|gif|webp)$/i.test(selectedUser.drivers[0].cr_document_url) ? (
+                              <a href={selectedUser.drivers[0].cr_document_url} target="_blank" rel="noopener noreferrer">
+                                <img src={selectedUser.drivers[0].cr_document_url} alt="CR" className="h-24 w-32 object-cover rounded" />
+                                <div className="text-sm text-blue-600">Certificate of Registration (CR)</div>
+                              </a>
+                            ) : (
+                              <a href={selectedUser.drivers[0].cr_document_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline">
+                                📄 Certificate of Registration (CR)
+                              </a>
+                            )}
+                          </div>
                         )}
                         {!selectedUser.drivers[0].or_document_url && !selectedUser.drivers[0].cr_document_url && (
                           <span className="text-sm text-red-600">⚠️ No documents uploaded</span>
