@@ -124,7 +124,22 @@ const AdminPanel = () => {
       
       // Combine profiles with roles and driver info
       const usersWithRoles = profiles.map(profile => {
-        const role = roleMap.get(profile.id) || 'rider'; // Default to rider if no role
+        // Check if user has a role in user_roles table
+        const explicitRole = roleMap.get(profile.id);
+        
+        // Check if user is a driver (has entry in drivers table)
+        const isDriver = driverMap.has(profile.id);
+        
+        // Determine role: explicit role > driver > rider (default)
+        let role;
+        if (explicitRole) {
+          role = explicitRole; // Use explicit role (admin, driver, etc.)
+        } else if (isDriver) {
+          role = 'driver'; // User is in drivers table but no explicit role
+        } else {
+          role = 'rider'; // Default for regular users
+        }
+        
         const driverStatus = driverMap.get(profile.id);
         
         return {
@@ -136,14 +151,23 @@ const AdminPanel = () => {
       });
       
       console.log('Combined users with roles:', usersWithRoles);
+      
+      // Debug role distribution
+      const roleDistribution = {};
+      usersWithRoles.forEach(user => {
+        roleDistribution[user.role] = (roleDistribution[user.role] || 0) + 1;
+      });
+      console.log('Role distribution:', roleDistribution);
+      
       setUsers(usersWithRoles);
       
       // Calculate stats
       const drivers = usersWithRoles.filter(u => u.role === 'driver').length;
       const riders = usersWithRoles.filter(u => u.role === 'rider').length;
+      const admins = usersWithRoles.filter(u => u.role === 'admin').length;
       const total = usersWithRoles.length;
       
-      console.log('Calculated stats:', { drivers, riders, total });
+      console.log('Calculated stats:', { drivers, riders, admins, total });
       setUserStats({ totalDrivers: drivers, totalRiders: riders, totalUsers: total });
     } else {
       console.log('No profiles found');
