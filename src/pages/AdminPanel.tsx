@@ -19,7 +19,14 @@ const AdminPanel = () => {
   const [payments, setPayments] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!loading && (!session || !isAdmin)) navigate("/auth");
+    if (!loading && !session) {
+      navigate("/auth");
+      return;
+    }
+    if (!loading && session && !isAdmin) {
+      navigate("/dashboard");
+      return;
+    }
   }, [loading, session, isAdmin, navigate]);
 
   useEffect(() => {
