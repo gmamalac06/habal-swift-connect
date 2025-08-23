@@ -11,6 +11,8 @@ import BookRide from "./pages/BookRide";
 import DriverPanel from "./pages/DriverPanel";
 import AdminPanel from "./pages/AdminPanel";
 import Navbar from "./components/layout/Navbar";
+import Payment from "./pages/Payment";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +30,8 @@ const App = () => (
           <Route path="/book" element={<BookRide />} />
           <Route path="/driver" element={<DriverPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/payment/:rideId" element={<Payment />} />
+          <Route path="/profile" element={<Profile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

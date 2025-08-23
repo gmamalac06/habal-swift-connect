@@ -29,7 +29,12 @@ const BookRide = () => {
   }, [loading, session, navigate]);
 
   useEffect(() => {
-    supabase.from("drivers").select("user_id, is_available").eq("approval_status", "approved").then(({ data }) => setDrivers(data ?? []));
+    supabase
+      .from("drivers")
+      .select("user_id, is_available")
+      .eq("approval_status", "approved")
+      .eq("is_available", true)
+      .then(({ data }) => setDrivers(data ?? []));
     supabase.from("pricing_settings").select("base_fare, per_km, surge_multiplier").maybeSingle?.()
       .then((res: any) => {
         const d = res?.data ?? res; setPricing(d);
@@ -46,18 +51,24 @@ const BookRide = () => {
     if (!user) return;
     setSubmitting(true);
     try {
+      // Basic auto-assign: if no preferred driver, pick the first available driver (if any)
+      const autoAssignedDriverId = preferredDriver || (drivers.length > 0 ? drivers[0].user_id : null);
+
       const { error } = await supabase.from("rides").insert({
         rider_id: user.id,
-        driver_id: preferredDriver,
+        driver_id: autoAssignedDriverId,
         pickup_address: pickup,
         dropoff_address: dropoff,
         scheduled_at: datetime ? new Date(datetime).toISOString() : null,
         estimated_distance_km: distance,
         estimated_fare: estimatedFare,
-        status: preferredDriver ? 'assigned' : 'requested',
+        status: autoAssignedDriverId ? 'assigned' : 'requested',
       });
       if (error) throw error;
-      toast({ title: "Ride requested", description: "We sent your request to drivers." });
+      toast({
+        title: autoAssignedDriverId ? "Driver assigned" : "Ride requested",
+        description: autoAssignedDriverId ? "A driver has been assigned. Awaiting acceptance." : "We sent your request to drivers.",
+      });
       navigate("/dashboard");
     } catch (err: any) {
       toast({ title: "Failed to book", description: err.message, variant: "destructive" });

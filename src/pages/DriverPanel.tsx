@@ -6,6 +6,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
+import LiveMap from "@/components/LiveMap";
+import { useLiveLocation } from "@/hooks/useLiveLocation";
+import { Switch } from "@/components/ui/switch";
+import { Label as UILabel } from "@/components/ui/label";
 
 const DriverPanel = () => {
   const { session, user, isDriver, loading } = useSession();
@@ -14,6 +18,9 @@ const DriverPanel = () => {
 
   const [driver, setDriver] = useState<any | null>(null);
   const [rides, setRides] = useState<any[]>([]);
+  const [incoming, setIncoming] = useState<any[]>([]);
+  const { coords: myCoords } = useLiveLocation();
+  const [driverOnline, setDriverOnline] = useState<boolean>(false);
 
   useEffect(() => {
     if (!loading && !session) navigate("/auth");
@@ -33,6 +40,18 @@ const DriverPanel = () => {
       .eq("driver_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => setRides(data ?? []));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    // Show requested rides that are unassigned so the driver can accept them
+    supabase
+      .from('rides')
+      .select('*')
+      .is('driver_id', null)
+      .eq('status', 'requested')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setIncoming(data ?? []));
   }, [user]);
 
   const register = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -75,6 +94,73 @@ const DriverPanel = () => {
     }
   };
 
+  const acceptRide = async (rideId: string) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('rides')
+      .update({ driver_id: user.id, status: 'accepted' })
+      .eq('id', rideId)
+      .is('driver_id', null)
+      .eq('status', 'requested');
+    if (error) {
+      toast({ title: 'Failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Ride accepted' });
+      setIncoming((list) => list.filter((r) => r.id !== rideId));
+      setRides((list) => list);
+    }
+  };
+
+  const acceptAssigned = async (rideId: string) => {
+    const { error } = await supabase
+      .from('rides')
+      .update({ status: 'accepted' })
+      .eq('id', rideId)
+      .eq('status', 'assigned');
+    if (error) {
+      toast({ title: 'Failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Ride accepted' });
+      setRides((list) => list.map((r) => (r.id === rideId ? { ...r, status: 'accepted' } : r)));
+    }
+  };
+
+  const rejectAssigned = async (rideId: string) => {
+    const { error } = await supabase
+      .from('rides')
+      .update({ driver_id: null, status: 'requested' })
+      .eq('id', rideId)
+      .eq('status', 'assigned');
+    if (error) {
+      toast({ title: 'Failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Ride rejected' });
+      setRides((list) => list.filter((r) => r.id !== rideId));
+      // Optionally refresh incoming list
+      supabase
+        .from('rides')
+        .select('*')
+        .is('driver_id', null)
+        .eq('status', 'requested')
+        .order('created_at', { ascending: false })
+        .then(({ data }) => setIncoming(data ?? []));
+    }
+  };
+
+  const startRide = async (rideId: string) => {
+    const { error } = await supabase
+      .from('rides')
+      .update({ status: 'in_progress' })
+      .eq('id', rideId)
+      .eq('status', 'accepted');
+    if (error) {
+      toast({ title: 'Failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Ride started' });
+      setRides((list) => list.map((r) => (r.id === rideId ? { ...r, status: 'in_progress' } : r)));
+    }
+  };
+
   return (
     <main className="container mx-auto py-10">
       <h1 className="text-3xl font-semibold">Driver Panel</h1>
@@ -105,15 +191,43 @@ const DriverPanel = () => {
         </section>
       ) : (
         <>
+          <section className="mt-6">
+            <h2 className="text-xl font-medium">Incoming ride requests</h2>
+            {incoming.length === 0 ? (
+              <p className="mt-2 text-muted-foreground">No new requests.</p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {incoming.map((r) => (
+                  <li key={r.id} className="rounded-md border p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{r.pickup_address || 'Pickup'} → {r.dropoff_address || 'Drop-off'}</div>
+                        <div className="text-muted-foreground">{new Date(r.created_at).toLocaleString()} • {r.status}</div>
+                      </div>
+                      <Button size="sm" onClick={() => acceptRide(r.id)}>Accept</Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           <section className="mt-6 flex items-center justify-between rounded-lg border p-4">
             <div>
               <div className="text-sm text-muted-foreground">Availability</div>
               <div className="text-xl font-semibold">{driver.is_available ? 'Available' : 'Offline'}</div>
               <div className="text-sm text-muted-foreground">Status: {driver.approval_status}</div>
             </div>
-            <Button onClick={toggleAvailability} disabled={driver.approval_status !== 'approved'}>
-              {driver.is_available ? 'Go offline' : 'Go available'}
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Switch id="driver-online" checked={driver.is_available} onCheckedChange={async (checked) => {
+                  await toggleAvailability();
+                }} />
+                <UILabel htmlFor="driver-online">{driver.is_available ? 'Online' : 'Offline'}</UILabel>
+              </div>
+              <Button onClick={toggleAvailability} disabled={driver.approval_status !== 'approved'}>
+                {driver.is_available ? 'Go offline' : 'Go available'}
+              </Button>
+            </div>
           </section>
 
           <section className="mt-8">
@@ -129,14 +243,33 @@ const DriverPanel = () => {
                         <div className="font-medium">{r.pickup_address || 'Pickup'} → {r.dropoff_address || 'Drop-off'}</div>
                         <div className="text-muted-foreground">{new Date(r.created_at).toLocaleString()} • {r.status}</div>
                       </div>
-                      {r.status !== 'completed' && (
-                        <Button size="sm" onClick={() => completeRide(r.id)}>Mark completed</Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {r.status === 'assigned' && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => rejectAssigned(r.id)}>Reject</Button>
+                            <Button size="sm" onClick={() => acceptAssigned(r.id)}>Accept</Button>
+                          </>
+                        )}
+                        {r.status === 'accepted' && (
+                          <Button size="sm" onClick={() => startRide(r.id)}>Start ride</Button>
+                        )}
+                        {r.status === 'in_progress' && (
+                          <Button size="sm" onClick={() => completeRide(r.id)}>Complete</Button>
+                        )}
+                      </div>
                     </div>
                   </li>
                 ))}
               </ul>
             )}
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-xl font-medium">Your location</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Live map centered on your current position.</p>
+            <div className="mt-4">
+              <LiveMap center={myCoords} markers={myCoords ? [{ id: 'me', lat: myCoords.lat, lng: myCoords.lng, label: 'You' }] : []} />
+            </div>
           </section>
         </>
       )}

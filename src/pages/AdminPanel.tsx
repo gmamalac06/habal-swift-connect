@@ -14,6 +14,7 @@ const AdminPanel = () => {
 
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any | null>(null);
+  const [payments, setPayments] = useState<any[]>([]);
 
   useEffect(() => {
     if (!loading && (!session || !isAdmin)) navigate("/auth");
@@ -28,6 +29,12 @@ const AdminPanel = () => {
     setPendingDrivers(drv ?? []);
     const ps = await supabase.from("pricing_settings").select("*").maybeSingle?.();
     setPricing((ps as any)?.data ?? ps ?? null);
+    const { data: pays } = await supabase
+      .from('payments')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setPayments(pays ?? []);
   };
 
   const approve = async (driver: any, approve: boolean) => {
@@ -44,6 +51,13 @@ const AdminPanel = () => {
     }
     toast({ title: approve ? "Driver approved" : "Driver rejected" });
     refresh();
+  };
+
+  const setPaymentStatus = async (paymentId: string, status: 'pending' | 'paid' | 'failed' | 'refunded') => {
+    const { error } = await supabase.from('payments').update({ status }).eq('id', paymentId);
+    if (error) return toast({ title: 'Failed', description: error.message, variant: 'destructive' });
+    toast({ title: 'Payment updated' });
+    setPayments((list) => list.map((p) => (p.id === paymentId ? { ...p, status } : p)));
   };
 
   const savePricing = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -101,6 +115,49 @@ const AdminPanel = () => {
           </div>
           <div className="sm:col-span-3"><Button type="submit">Save pricing</Button></div>
         </form>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-xl font-medium">Recent payments</h2>
+        {payments.length === 0 ? (
+          <p className="mt-2 text-muted-foreground">No payments yet.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="py-2 pr-4">Created</th>
+                  <th className="py-2 pr-4">Ride</th>
+                  <th className="py-2 pr-4">Payer</th>
+                  <th className="py-2 pr-4">Method</th>
+                  <th className="py-2 pr-4">Amount</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id} className="border-b">
+                    <td className="py-2 pr-4">{new Date(p.created_at).toLocaleString()}</td>
+                    <td className="py-2 pr-4">{String(p.ride_id).slice(0, 8)}…</td>
+                    <td className="py-2 pr-4">{String(p.payer_id).slice(0, 8)}…</td>
+                    <td className="py-2 pr-4 uppercase">{p.method}</td>
+                    <td className="py-2 pr-4">₱{Number(p.amount).toFixed(2)}</td>
+                    <td className="py-2 pr-4">{p.status}</td>
+                    <td className="py-2 pr-4">
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setPaymentStatus(p.id, 'pending')}>Pending</Button>
+                        <Button size="sm" onClick={() => setPaymentStatus(p.id, 'paid')}>Mark paid</Button>
+                        <Button size="sm" variant="destructive" onClick={() => setPaymentStatus(p.id, 'failed')}>Fail</Button>
+                        <Button size="sm" variant="outline" onClick={() => setPaymentStatus(p.id, 'refunded')}>Refund</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );

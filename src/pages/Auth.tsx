@@ -16,6 +16,11 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isDriverSignup, setIsDriverSignup] = useState(false);
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [plateNumber, setPlateNumber] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -55,7 +60,22 @@ const Auth = () => {
       if (error) throw error;
       if (data.user) {
         await supabase.from("profiles").upsert({ id: data.user.id, full_name: fullName, phone });
-        toast({ title: "Welcome!", description: "Account created successfully." });
+        if (isDriverSignup) {
+          if (!vehicleMake || !vehicleModel || !plateNumber || !licenseNumber) {
+            throw new Error("Please complete all driver details.");
+          }
+          const { error: drvErr } = await supabase.from("drivers").insert({
+            user_id: data.user.id,
+            vehicle_make: vehicleMake,
+            vehicle_model: vehicleModel,
+            plate_number: plateNumber,
+            license_number: licenseNumber,
+          });
+          if (drvErr) throw drvErr;
+          toast({ title: "Driver application submitted", description: "Await admin approval." });
+        } else {
+          toast({ title: "Welcome!", description: "Account created successfully." });
+        }
         window.location.href = "/dashboard";
       } else {
         toast({ title: "Check your email", description: "Confirm your email to finish sign up." });
@@ -81,6 +101,37 @@ const Auth = () => {
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Input id="phone" value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">Sign up as a driver</div>
+                  <div className="text-xs text-muted-foreground">Includes vehicle and license details for admin approval.</div>
+                </div>
+                <button type="button" className="text-primary underline-offset-4 hover:underline" onClick={() => setIsDriverSignup(v => !v)}>
+                  {isDriverSignup ? 'Switch to rider' : 'Switch to driver'}
+                </button>
+              </div>
+              {isDriverSignup && (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="vehicle_make">Vehicle make</Label>
+                    <Input id="vehicle_make" value={vehicleMake} onChange={e => setVehicleMake(e.target.value)} required={isDriverSignup} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="vehicle_model">Vehicle model</Label>
+                    <Input id="vehicle_model" value={vehicleModel} onChange={e => setVehicleModel(e.target.value)} required={isDriverSignup} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="plate_number">Plate number</Label>
+                    <Input id="plate_number" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} required={isDriverSignup} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="license_number">License number</Label>
+                    <Input id="license_number" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} required={isDriverSignup} />
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
