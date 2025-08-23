@@ -24,15 +24,15 @@ const Navbar = () => {
   useEffect(() => {
     if (!user) return;
     // Load initial online flag for rider or driver.
-    // For driver, use drivers.is_available; for rider, profiles.rider_online if exists.
+    // For driver, use drivers.is_available; for rider, default to true since rider_online column doesn't exist yet.
     (async () => {
       try {
         if (isDriver) {
           const { data } = await supabase.from('drivers').select('is_available').eq('user_id', user.id).maybeSingle();
           if (data) setOnline(!!data.is_available);
         } else {
-          const { data } = await supabase.from('profiles').select('rider_online').eq('id', user.id).maybeSingle();
-          if (data && typeof data.rider_online === 'boolean') setOnline(data.rider_online);
+          // For riders, default to online since rider_online column doesn't exist in profiles table yet
+          setOnline(true);
         }
       } catch {}
     })();
@@ -44,7 +44,9 @@ const Navbar = () => {
       if (isDriver) {
         await supabase.from('drivers').update({ is_available: checked }).eq('user_id', user?.id ?? '');
       } else {
-        await supabase.from('profiles').upsert({ id: user?.id ?? '', rider_online: checked });
+        // For riders, just update local state since rider_online column doesn't exist yet
+        // TODO: Add rider_online column to profiles table when needed
+        console.log('Rider online status:', checked);
       }
     } catch {}
   };

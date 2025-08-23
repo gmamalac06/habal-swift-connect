@@ -290,9 +290,9 @@ const Dashboard = () => {
                   </Button>
                 </Link>
               </div>
-            </div>
+        </div>
             
-            {isDriver && (
+        {isDriver && (
               <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl shadow-lg border border-orange-100 p-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">🚗 Driver Panel</h2>
                 <p className="text-gray-600 mb-4">Manage your rides and availability</p>
@@ -301,10 +301,10 @@ const Dashboard = () => {
                     Open Panel
                   </Button>
                 </Link>
-              </div>
-            )}
+          </div>
+        )}
             
-            {isAdmin && (
+        {isAdmin && (
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl shadow-lg border border-purple-100 p-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">👑 Admin Panel</h2>
                 <p className="text-gray-600 mb-4">Manage drivers and system settings</p>
@@ -313,8 +313,8 @@ const Dashboard = () => {
                     Open Panel
                   </Button>
                 </Link>
-              </div>
-            )}
+          </div>
+        )}
           </div>
         </div>
 
@@ -324,19 +324,19 @@ const Dashboard = () => {
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6">
               <h2 className="text-2xl font-bold text-gray-800">📋 Recent Rides</h2>
               <p className="text-gray-600 mt-1">Your latest trips and bookings</p>
-            </div>
-            
+      </div>
+
             <div className="p-6">
-              {recent.length === 0 ? (
+        {recent.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">🚗</div>
                   <p className="text-gray-500 text-lg">No rides yet. Book your first trip!</p>
                 </div>
-              ) : (
+        ) : (
                 <div className="space-y-4">
-                  {recent.map((r) => (
+            {recent.map((r) => (
                     <div key={r.id} className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-100 hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="font-semibold text-gray-800">
                             📍 {r.pickup_address || 'Pickup'} → 🎯 {r.dropoff_address || 'Drop-off'}
@@ -350,14 +350,14 @@ const Dashboard = () => {
                             <div className="text-lg font-bold text-green-600">₱{Number(r.estimated_fare).toFixed(2)}</div>
                           </div>
                         )}
-                      </div>
-                    </div>
-                  ))}
+                  </div>
                 </div>
-              )}
+            ))}
+                </div>
+        )}
             </div>
           </div>
-        </section>
+      </section>
       </div>
     </main>
   );
