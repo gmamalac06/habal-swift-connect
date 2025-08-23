@@ -106,9 +106,12 @@ const AdminPanel = () => {
     }
     
     if (profiles && profiles.length > 0) {
+      console.log('Processing', profiles.length, 'profiles');
+      
       // Create a map of user roles
       const roleMap = new Map();
       if (userRoles) {
+        console.log('Processing', userRoles.length, 'user roles');
         userRoles.forEach(ur => {
           roleMap.set(ur.user_id, ur.role);
         });
@@ -117,10 +120,14 @@ const AdminPanel = () => {
       // Create a map of driver status
       const driverMap = new Map();
       if (drivers) {
+        console.log('Processing', drivers.length, 'drivers');
         drivers.forEach(d => {
           driverMap.set(d.user_id, d.approval_status);
         });
       }
+      
+      console.log('Role map size:', roleMap.size);
+      console.log('Driver map size:', driverMap.size);
       
       // Combine profiles with roles and driver info
       const usersWithRoles = profiles.map(profile => {
