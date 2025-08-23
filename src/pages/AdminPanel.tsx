@@ -100,11 +100,10 @@ const AdminPanel = () => {
       console.log('Profiles loaded:', profiles);
     }
     
-    // Get all user roles to map them
+    // Get all user roles to map them (user_roles table doesn't have created_at column)
     const { data: userRoles, error: userRolesError } = await supabase
       .from('user_roles')
-      .select('user_id, role')
-      .order('created_at', { ascending: false });
+      .select('user_id, role');
     
     if (userRolesError) {
       console.error('Error loading user roles:', userRolesError);
@@ -115,8 +114,7 @@ const AdminPanel = () => {
     // Get all drivers to determine who is a driver
     const { data: drivers, error: driversError } = await supabase
       .from('drivers')
-      .select('user_id, approval_status')
-      .order('created_at', { ascending: false });
+      .select('user_id, approval_status');
     
     if (driversError) {
       console.error('Error loading drivers:', driversError);
@@ -150,30 +148,40 @@ const AdminPanel = () => {
       
       // Combine profiles with roles and driver info
       const usersWithRoles = profiles.map(profile => {
-        // Check if user has a role in user_roles table
-        const explicitRole = roleMap.get(profile.id);
-        
-        // Check if user is a driver (has entry in drivers table)
-        const isDriver = driverMap.has(profile.id);
-        
-        // Determine role: explicit role > driver > rider (default)
-        let role;
-        if (explicitRole) {
-          role = explicitRole; // Use explicit role (admin, driver, etc.)
-        } else if (isDriver) {
-          role = 'driver'; // User is in drivers table but no explicit role
-        } else {
-          role = 'rider'; // Default for regular users
+        try {
+          // Check if user has a role in user_roles table
+          const explicitRole = roleMap.get(profile.id);
+          
+          // Check if user is a driver (has entry in drivers table)
+          const isDriver = driverMap.has(profile.id);
+          
+          // Determine role: explicit role > driver > rider (default)
+          let role;
+          if (explicitRole) {
+            role = explicitRole; // Use explicit role (admin, driver, etc.)
+          } else if (isDriver) {
+            role = 'driver'; // User is in drivers table but no explicit role
+          } else {
+            role = 'rider'; // Default for regular users
+          }
+          
+          const driverStatus = driverMap.get(profile.id);
+          
+          return {
+            user_id: profile.id,
+            role: role,
+            profiles: profile,
+            driver_status: driverStatus
+          };
+        } catch (error) {
+          console.error('Error processing profile:', profile.id, error);
+          return {
+            user_id: profile.id,
+            role: 'rider',
+            profiles: profile,
+            driver_status: null
+          };
         }
-        
-        const driverStatus = driverMap.get(profile.id);
-        
-        return {
-          user_id: profile.id,
-          role: role,
-          profiles: profile,
-          driver_status: driverStatus
-        };
       });
       
       console.log('Combined users with roles:', usersWithRoles);
