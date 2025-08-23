@@ -67,6 +67,21 @@ const AdminPanel = () => {
     setPayments(pays ?? []);
     
     // Load users with their roles and profiles
+    console.log('Starting to load user roles...');
+    
+    // First, try to get basic user roles without profiles
+    const { data: basicUserRoles, error: basicError } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .order('created_at', { ascending: false });
+    
+    if (basicError) {
+      console.error('Error loading basic user roles:', basicError);
+    } else {
+      console.log('Basic user roles loaded:', basicUserRoles);
+    }
+    
+    // Then try to get user roles with profiles
     const { data: userRoles, error: userRolesError } = await supabase
       .from('user_roles')
       .select(`
@@ -77,32 +92,43 @@ const AdminPanel = () => {
       .order('created_at', { ascending: false });
     
     if (userRolesError) {
-      console.error('Error loading user roles:', userRolesError);
+      console.error('Error loading user roles with profiles:', userRolesError);
     }
     
-    if (userRoles) {
-      console.log('Loaded user roles:', userRoles);
-      setUsers(userRoles);
+    // Use basic user roles if the profile join fails
+    const finalUserRoles = userRoles || basicUserRoles;
+    
+    if (finalUserRoles && finalUserRoles.length > 0) {
+      console.log('Final user roles to use:', finalUserRoles);
+      setUsers(finalUserRoles);
       
       // Calculate stats
-      const drivers = userRoles.filter(u => u.role === 'driver').length;
-      const riders = userRoles.filter(u => u.role === 'rider').length;
-      const total = userRoles.length;
+      const drivers = finalUserRoles.filter(u => u.role === 'driver').length;
+      const riders = finalUserRoles.filter(u => u.role === 'rider').length;
+      const total = finalUserRoles.length;
       
       console.log('Calculated stats:', { drivers, riders, total });
       setUserStats({ totalDrivers: drivers, totalRiders: riders, totalUsers: total });
     } else {
-      console.log('No user roles found');
+      console.log('No user roles found at all');
       
-      // Fallback: check if there are any users at all
-      const { data: allUsers, error: allUsersError } = await supabase
-        .from('user_roles')
+      // Additional debugging: check auth.users table
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      if (authError) {
+        console.error('Error loading auth users:', authError);
+      } else {
+        console.log('Auth users found:', authUsers?.users?.length || 0);
+      }
+      
+      // Check profiles table directly
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
         .select('*');
       
-      if (allUsersError) {
-        console.error('Error loading all users:', allUsersError);
+      if (profilesError) {
+        console.error('Error loading profiles:', profilesError);
       } else {
-        console.log('All users in user_roles table:', allUsers);
+        console.log('Profiles found:', profiles?.length || 0);
       }
     }
   };
