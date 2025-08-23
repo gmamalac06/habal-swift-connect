@@ -146,8 +146,12 @@ const AdminPanel = () => {
       console.log('Role map size:', roleMap.size);
       console.log('Driver map size:', driverMap.size);
       
-      // Combine profiles with roles and driver info
-      const usersWithRoles = profiles.map(profile => {
+      // Combine profiles with roles and driver info - simplified approach
+      const usersWithRoles = [];
+      
+      for (let i = 0; i < profiles.length; i++) {
+        const profile = profiles[i];
+        
         try {
           // Check if user has a role in user_roles table
           const explicitRole = roleMap.get(profile.id);
@@ -156,49 +160,59 @@ const AdminPanel = () => {
           const isDriver = driverMap.has(profile.id);
           
           // Determine role: explicit role > driver > rider (default)
-          let role;
+          let role = 'rider'; // Default
           if (explicitRole) {
             role = explicitRole; // Use explicit role (admin, driver, etc.)
           } else if (isDriver) {
             role = 'driver'; // User is in drivers table but no explicit role
-          } else {
-            role = 'rider'; // Default for regular users
           }
           
           const driverStatus = driverMap.get(profile.id);
           
-          return {
+          usersWithRoles.push({
             user_id: profile.id,
             role: role,
             profiles: profile,
             driver_status: driverStatus
-          };
+          });
         } catch (error) {
           console.error('Error processing profile:', profile.id, error);
-          return {
+          usersWithRoles.push({
             user_id: profile.id,
             role: 'rider',
             profiles: profile,
             driver_status: null
-          };
+          });
         }
-      });
+      }
       
       console.log('Combined users with roles:', usersWithRoles);
       
-      // Debug role distribution
-      const roleDistribution = {};
-      usersWithRoles.forEach(user => {
-        roleDistribution[user.role] = (roleDistribution[user.role] || 0) + 1;
-      });
+      // Debug role distribution - simplified
+      const roleDistribution = { admin: 0, driver: 0, rider: 0 };
+      for (let i = 0; i < usersWithRoles.length; i++) {
+        const user = usersWithRoles[i];
+        const role = user.role || 'rider';
+        roleDistribution[role] = (roleDistribution[role] || 0) + 1;
+      }
       console.log('Role distribution:', roleDistribution);
       
       setUsers(usersWithRoles);
       
-      // Calculate stats
-      const drivers = usersWithRoles.filter(u => u.role === 'driver').length;
-      const riders = usersWithRoles.filter(u => u.role === 'rider').length;
-      const admins = usersWithRoles.filter(u => u.role === 'admin').length;
+      // Calculate stats - simplified
+      let drivers = 0;
+      let riders = 0;
+      let admins = 0;
+      
+      for (let i = 0; i < usersWithRoles.length; i++) {
+        const user = usersWithRoles[i];
+        const role = user.role || 'rider';
+        
+        if (role === 'driver') drivers++;
+        else if (role === 'admin') admins++;
+        else riders++;
+      }
+      
       const total = usersWithRoles.length;
       
       console.log('Calculated stats:', { drivers, riders, admins, total });
