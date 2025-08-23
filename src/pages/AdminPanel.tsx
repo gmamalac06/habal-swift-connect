@@ -68,13 +68,11 @@ const AdminPanel = () => {
     const { error } = await supabase.from("drivers").update({ approval_status: status }).eq("id", driver.id);
     if (error) return toast({ title: "Failed", description: error.message, variant: "destructive" });
     if (approve) {
-      // ensure driver role exists - use upsert to handle duplicates gracefully
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .upsert(
-          { user_id: driver.user_id, role: 'driver' },
-          { onConflict: 'user_id,role' }
-        );
+      // Use the admin function to assign driver role
+      const { error: roleError } = await supabase.rpc('assign_user_role', {
+        target_user_id: driver.user_id,
+        role_to_assign: 'driver'
+      });
       
       if (roleError) {
         console.error('Failed to add driver role:', roleError);
