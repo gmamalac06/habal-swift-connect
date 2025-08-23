@@ -1,20 +1,10 @@
 -- Add 'banned' role to app_role enum for user banning functionality
+-- This approach safely adds the new role without breaking existing dependencies
 
--- First, create a new enum type with the banned role
-CREATE TYPE public.app_role_new AS ENUM ('admin', 'driver', 'rider', 'banned');
+-- Add the 'banned' value to the existing enum type
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'banned';
 
--- Update the user_roles table to use the new enum
-ALTER TABLE public.user_roles 
-  ALTER COLUMN role TYPE public.app_role_new 
-  USING role::text::public.app_role_new;
-
--- Drop the old enum type
-DROP TYPE public.app_role;
-
--- Rename the new enum type to the original name
-ALTER TYPE public.app_role_new RENAME TO app_role;
-
--- Update the has_role function to work with the new enum
+-- Update the has_role function to work with the updated enum
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
 RETURNS boolean
 LANGUAGE sql
@@ -27,7 +17,7 @@ AS $$
   );
 $$;
 
--- Update the assign_user_role function to work with the new enum
+-- Update the assign_user_role function to work with the updated enum
 CREATE OR REPLACE FUNCTION public.assign_user_role(
   target_user_id uuid,
   role_to_assign public.app_role
