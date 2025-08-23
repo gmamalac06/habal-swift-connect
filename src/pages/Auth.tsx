@@ -90,7 +90,7 @@ const Auth = () => {
   return (
     <main className="container mx-auto max-w-md py-16">
       <h1 className="mb-2 text-3xl font-semibold">{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
-      <p className="mb-8 text-muted-foreground">Secure access to Habal Swift Connect</p>
+      <p className="mb-8 text-muted-foreground">Secure access to Habal-Habal Cotabato</p>
       <form onSubmit={mode === 'signin' ? handleSignIn : handleSignUp} className="space-y-4">
         {mode === 'signup' && (
           <>
