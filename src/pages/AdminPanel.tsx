@@ -11,9 +11,18 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const AdminPanel = () => {
-  const { session, isAdmin, loading } = useSession();
+  const { session, isAdmin, loading, roles } = useSession();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Debug logging
+  console.log('AdminPanel Debug:', {
+    loading,
+    hasSession: !!session,
+    userId: session?.user?.id,
+    isAdmin,
+    roles
+  });
 
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any | null>(null);
