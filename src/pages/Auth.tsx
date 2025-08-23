@@ -72,8 +72,9 @@ const Auth = () => {
           }
           
           // Upload documents to Supabase Storage
-          const orFileName = `or_${data.user.id}_${Date.now()}.pdf`;
-          const crFileName = `cr_${data.user.id}_${Date.now()}.pdf`;
+          // Use user ID as folder name to work with RLS policies
+          const orFileName = `${data.user.id}/or_${Date.now()}.${orDocument.name.split('.').pop()}`;
+          const crFileName = `${data.user.id}/cr_${Date.now()}.${crDocument.name.split('.').pop()}`;
           
           const { error: orUploadError } = await supabase.storage
             .from('driver-documents')
