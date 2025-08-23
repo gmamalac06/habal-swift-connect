@@ -67,16 +67,21 @@ const AdminPanel = () => {
     setPayments(pays ?? []);
     
     // Load users with their roles and profiles
-    const { data: userRoles } = await supabase
+    const { data: userRoles, error: userRolesError } = await supabase
       .from('user_roles')
       .select(`
         user_id,
         role,
-        profiles!inner(full_name, phone, created_at)
+        profiles(full_name, phone, created_at)
       `)
       .order('created_at', { ascending: false });
     
+    if (userRolesError) {
+      console.error('Error loading user roles:', userRolesError);
+    }
+    
     if (userRoles) {
+      console.log('Loaded user roles:', userRoles);
       setUsers(userRoles);
       
       // Calculate stats
@@ -84,7 +89,21 @@ const AdminPanel = () => {
       const riders = userRoles.filter(u => u.role === 'rider').length;
       const total = userRoles.length;
       
+      console.log('Calculated stats:', { drivers, riders, total });
       setUserStats({ totalDrivers: drivers, totalRiders: riders, totalUsers: total });
+    } else {
+      console.log('No user roles found');
+      
+      // Fallback: check if there are any users at all
+      const { data: allUsers, error: allUsersError } = await supabase
+        .from('user_roles')
+        .select('*');
+      
+      if (allUsersError) {
+        console.error('Error loading all users:', allUsersError);
+      } else {
+        console.log('All users in user_roles table:', allUsers);
+      }
     }
   };
 
