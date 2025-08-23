@@ -64,16 +64,52 @@ const Auth = () => {
           if (!vehicleMake || !vehicleModel || !plateNumber || !licenseNumber) {
             throw new Error("Please complete all driver details.");
           }
+          
+          // Create driver entry (pending approval)
           const { error: drvErr } = await supabase.from("drivers").insert({
             user_id: data.user.id,
             vehicle_make: vehicleMake,
             vehicle_model: vehicleModel,
             plate_number: plateNumber,
             license_number: licenseNumber,
+            approval_status: 'pending'
           });
           if (drvErr) throw drvErr;
-          toast({ title: "Driver application submitted", description: "Await admin approval." });
+          
+          // Create user role as driver (so they can access driver features while pending)
+          const { error: roleErr } = await supabase.from("user_roles").insert({
+            user_id: data.user.id,
+            role: 'driver'
+          });
+          if (roleErr) {
+            console.error("Error creating driver role:", roleErr);
+            if (!roleErr.message?.includes('duplicate')) {
+              toast({ 
+                title: "Warning", 
+                description: "Account created but role assignment failed. Please contact support.", 
+                variant: "destructive" 
+              });
+            }
+          }
+          
+          toast({ title: "Driver application submitted", description: "Await admin approval to start accepting rides." });
         } else {
+          // Create user role as rider for regular users
+          const { error: roleErr } = await supabase.from("user_roles").insert({
+            user_id: data.user.id,
+            role: 'rider'
+          });
+          if (roleErr) {
+            console.error("Error creating rider role:", roleErr);
+            if (!roleErr.message?.includes('duplicate')) {
+              toast({ 
+                title: "Warning", 
+                description: "Account created but role assignment failed. Please contact support.", 
+                variant: "destructive" 
+              });
+            }
+          }
+          
           toast({ title: "Welcome!", description: "Account created successfully." });
         }
         window.location.href = "/dashboard";

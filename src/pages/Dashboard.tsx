@@ -35,6 +35,13 @@ const Dashboard = () => {
     if (!loading && !session) navigate("/auth");
   }, [loading, session, navigate]);
 
+  // Redirect drivers to their panel unless they're also admins
+  useEffect(() => {
+    if (!loading && session && isDriver && !isAdmin) {
+      navigate("/driver");
+    }
+  }, [loading, session, isDriver, isAdmin, navigate]);
+
   useEffect(() => {
     if (!user) return;
     supabase

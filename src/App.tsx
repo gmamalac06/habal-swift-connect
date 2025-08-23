@@ -12,6 +12,7 @@ import DriverPanel from "./pages/DriverPanel";
 import AdminPanel from "./pages/AdminPanel";
 import Navbar from "./components/layout/Navbar";
 import Payment from "./pages/Payment";
+import PaymentHistory from "./pages/PaymentHistory";
 import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/driver" element={<DriverPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/payment/:rideId" element={<Payment />} />
+          <Route path="/payment/history" element={<PaymentHistory />} />
           <Route path="/profile" element={<Profile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
