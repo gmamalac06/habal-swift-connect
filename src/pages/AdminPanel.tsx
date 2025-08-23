@@ -69,6 +69,25 @@ const AdminPanel = () => {
     // Load all users from profiles table and determine their roles
     console.log('Starting to load all users...');
     
+    // First, let's test a simple query to see if we can access the table at all
+    console.log('Testing basic table access...');
+    
+    // Test 1: Simple profiles query
+    const { data: testProfiles, error: testError } = await supabase
+      .from('profiles')
+      .select('count')
+      .limit(1);
+    
+    console.log('Test profiles query result:', { data: testProfiles, error: testError });
+    
+    // Test 2: Simple user_roles query
+    const { data: testRoles, error: testRolesError } = await supabase
+      .from('user_roles')
+      .select('count')
+      .limit(1);
+    
+    console.log('Test user_roles query result:', { data: testRoles, error: testRolesError });
+    
     // Get all profiles (this should work since profiles are created for all users)
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
