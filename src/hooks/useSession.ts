@@ -8,6 +8,14 @@ export function useSession() {
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchRoles = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    setRoles((data ?? []).map((r: any) => r.role));
+  };
+
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
@@ -15,27 +23,18 @@ export function useSession() {
       if (sess?.user) {
         // Defer fetching roles to avoid deadlocks
         setTimeout(() => {
-          supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", sess.user.id)
-            .then(({ data }) => setRoles((data ?? []).map((r: any) => r.role)));
+          fetchRoles(sess.user.id);
         }, 0);
       } else {
         setRoles([]);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .then(({ data }) => setRoles((data ?? []).map((r: any) => r.role))
-          );
+        await fetchRoles(session.user.id);
       }
       setLoading(false);
     });
