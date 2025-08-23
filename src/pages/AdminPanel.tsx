@@ -14,6 +14,9 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Debug logging
+  console.log('AdminPanel - loading:', loading, 'session:', !!session, 'isAdmin:', isAdmin);
+
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
