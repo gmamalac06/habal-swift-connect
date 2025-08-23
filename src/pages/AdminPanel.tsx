@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,6 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Debug logging
-  console.log('AdminPanel - loading:', loading, 'session:', !!session, 'isAdmin:', isAdmin);
-
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
@@ -27,14 +25,21 @@ const AdminPanel = () => {
       return;
     }
     if (!loading && session && !isAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have admin privileges to access this page.",
+        variant: "destructive"
+      });
       navigate("/dashboard");
       return;
     }
-  }, [loading, session, isAdmin, navigate]);
+  }, [loading, session, isAdmin, navigate, toast]);
 
   useEffect(() => {
-    refresh();
-  }, []);
+    if (session && isAdmin) {
+      refresh();
+    }
+  }, [session, isAdmin]);
 
   const refresh = async () => {
     const { data: drv } = await supabase.from("drivers").select("*").eq("approval_status", "pending");
@@ -95,6 +100,27 @@ const AdminPanel = () => {
     };
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
+
+  // Show loading state while checking permissions
+  if (loading) {
+    return (
+      <main className="container mx-auto py-8 px-4">
+        <div className="text-center">Loading...</div>
+      </main>
+    );
+  }
+
+  // Show message if not admin
+  if (!isAdmin) {
+    return (
+      <main className="container mx-auto py-8 px-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have admin privileges to access this page.</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="container mx-auto py-8 px-4">
