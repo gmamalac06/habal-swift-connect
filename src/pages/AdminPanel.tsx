@@ -66,69 +66,111 @@ const AdminPanel = () => {
       .limit(50);
     setPayments(pays ?? []);
     
-    // Load users with their roles and profiles
-    console.log('Starting to load user roles...');
+    // Load all users from profiles table and determine their roles
+    console.log('Starting to load all users...');
     
-    // First, try to get basic user roles without profiles
-    const { data: basicUserRoles, error: basicError } = await supabase
+    // Get all profiles (this should work since profiles are created for all users)
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (profilesError) {
+      console.error('Error loading profiles:', profilesError);
+    } else {
+      console.log('Profiles loaded:', profiles);
+    }
+    
+    // Get all user roles to map them
+    const { data: userRoles, error: userRolesError } = await supabase
       .from('user_roles')
       .select('user_id, role')
       .order('created_at', { ascending: false });
     
-    if (basicError) {
-      console.error('Error loading basic user roles:', basicError);
+    if (userRolesError) {
+      console.error('Error loading user roles:', userRolesError);
     } else {
-      console.log('Basic user roles loaded:', basicUserRoles);
+      console.log('User roles loaded:', userRoles);
     }
     
-    // Then try to get user roles with profiles
-    const { data: userRoles, error: userRolesError } = await supabase
-      .from('user_roles')
-      .select(`
-        user_id,
-        role,
-        profiles(full_name, phone, created_at)
-      `)
+    // Get all drivers to determine who is a driver
+    const { data: drivers, error: driversError } = await supabase
+      .from('drivers')
+      .select('user_id, approval_status')
       .order('created_at', { ascending: false });
     
-    if (userRolesError) {
-      console.error('Error loading user roles with profiles:', userRolesError);
+    if (driversError) {
+      console.error('Error loading drivers:', driversError);
+    } else {
+      console.log('Drivers loaded:', drivers);
     }
     
-    // Use basic user roles if the profile join fails
-    const finalUserRoles = userRoles || basicUserRoles;
-    
-    if (finalUserRoles && finalUserRoles.length > 0) {
-      console.log('Final user roles to use:', finalUserRoles);
-      setUsers(finalUserRoles);
+    if (profiles && profiles.length > 0) {
+      // Create a map of user roles
+      const roleMap = new Map();
+      if (userRoles) {
+        userRoles.forEach(ur => {
+          roleMap.set(ur.user_id, ur.role);
+        });
+      }
+      
+      // Create a map of driver status
+      const driverMap = new Map();
+      if (drivers) {
+        drivers.forEach(d => {
+          driverMap.set(d.user_id, d.approval_status);
+        });
+      }
+      
+      // Combine profiles with roles and driver info
+      const usersWithRoles = profiles.map(profile => {
+        const role = roleMap.get(profile.id) || 'rider'; // Default to rider if no role
+        const driverStatus = driverMap.get(profile.id);
+        
+        return {
+          user_id: profile.id,
+          role: role,
+          profiles: profile,
+          driver_status: driverStatus
+        };
+      });
+      
+      console.log('Combined users with roles:', usersWithRoles);
+      setUsers(usersWithRoles);
       
       // Calculate stats
-      const drivers = finalUserRoles.filter(u => u.role === 'driver').length;
-      const riders = finalUserRoles.filter(u => u.role === 'rider').length;
-      const total = finalUserRoles.length;
+      const drivers = usersWithRoles.filter(u => u.role === 'driver').length;
+      const riders = usersWithRoles.filter(u => u.role === 'rider').length;
+      const total = usersWithRoles.length;
       
       console.log('Calculated stats:', { drivers, riders, total });
       setUserStats({ totalDrivers: drivers, totalRiders: riders, totalUsers: total });
     } else {
-      console.log('No user roles found at all');
+      console.log('No profiles found');
       
-      // Additional debugging: check auth.users table
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) {
-        console.error('Error loading auth users:', authError);
-      } else {
-        console.log('Auth users found:', authUsers?.users?.length || 0);
-      }
-      
-      // Check profiles table directly
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-      
-      if (profilesError) {
-        console.error('Error loading profiles:', profilesError);
-      } else {
-        console.log('Profiles found:', profiles?.length || 0);
+      // Fallback: try to get auth users directly
+      try {
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) {
+          console.error('Error loading auth users:', authError);
+        } else {
+          console.log('Auth users found:', authUsers?.users?.length || 0);
+          if (authUsers?.users) {
+            const basicUsers = authUsers.users.map(user => ({
+              user_id: user.id,
+              role: 'unknown',
+              profiles: { full_name: user.email, phone: 'N/A', created_at: user.created_at }
+            }));
+            setUsers(basicUsers);
+            setUserStats({ 
+              totalDrivers: 0, 
+              totalRiders: basicUsers.length, 
+              totalUsers: basicUsers.length 
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error with auth admin:', error);
       }
     }
   };
