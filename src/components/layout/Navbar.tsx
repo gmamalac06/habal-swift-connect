@@ -60,7 +60,7 @@ const Navbar = () => {
         <div className="flex items-center gap-2">
           {!loading && (
             <>
-              <Link to="/book"><Button variant="ghost">Book</Button></Link>
+              {!isAdmin && <Link to="/book"><Button variant="ghost">Book</Button></Link>}
               {isDriver && <Link to="/driver"><Button variant="ghost">Driver</Button></Link>}
               {isAdmin && <Link to="/admin"><Button variant="ghost">Admin</Button></Link>}
               {session ? (
