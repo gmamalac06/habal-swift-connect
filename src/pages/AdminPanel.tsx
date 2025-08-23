@@ -204,29 +204,61 @@ const AdminPanel = () => {
             <div className="space-y-4">
               {pendingDrivers.map((d) => (
                 <div key={d.id} className="p-4 rounded-lg border bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-gray-900">{d.user_id}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {d.vehicle_make} {d.vehicle_model} • {d.plate_number}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-gray-900">{d.user_id}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {d.vehicle_make} {d.vehicle_model} • {d.plate_number}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          License: {d.license_number}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        License: {d.license_number}
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => approve(d, true)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          ✅ Approve
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => approve(d, false)}
+                        >
+                          ❌ Reject
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => approve(d, true)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        ✅ Approve
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        onClick={() => approve(d, false)}
-                      >
-                        ❌ Reject
-                      </Button>
+                    
+                    {/* Document Links */}
+                    <div className="border-t pt-3">
+                      <div className="text-sm font-medium text-gray-700 mb-2">Uploaded Documents:</div>
+                      <div className="flex gap-3">
+                        {d.or_document_url && (
+                          <a 
+                            href={d.or_document_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
+                          >
+                            📄 Official Receipt (OR)
+                          </a>
+                        )}
+                        {d.cr_document_url && (
+                          <a 
+                            href={d.cr_document_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
+                          >
+                            📄 Certificate of Registration (CR)
+                          </a>
+                        )}
+                        {!d.or_document_url && !d.cr_document_url && (
+                          <span className="text-sm text-red-600">⚠️ No documents uploaded</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -191,6 +191,21 @@ const DriverPanel = () => {
         </section>
       ) : (
         <>
+          {/* Pending Approval Banner */}
+          {driver?.approval_status === 'pending' && (
+            <div className="mb-6 p-4 rounded-lg border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">⏳</div>
+                <div>
+                  <h3 className="font-semibold text-orange-800">Application Pending Approval</h3>
+                  <p className="text-sm text-orange-700">
+                    Your driver application is currently under review. You'll be able to accept rides once approved by an admin.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <section className="mt-6">
             <h2 className="text-xl font-medium">Incoming ride requests</h2>
             {incoming.length === 0 ? (
@@ -215,7 +230,20 @@ const DriverPanel = () => {
             <div>
               <div className="text-sm text-muted-foreground">Availability</div>
               <div className="text-xl font-semibold">{driver.is_available ? 'Available' : 'Offline'}</div>
-              <div className="text-sm text-muted-foreground">Status: {driver.approval_status}</div>
+              <div className="text-sm text-muted-foreground">
+                Status: 
+                <span className={`ml-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  driver.approval_status === 'pending' 
+                    ? 'bg-orange-100 text-orange-800' 
+                    : driver.approval_status === 'approved'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {driver.approval_status === 'pending' ? '⏳ Pending Approval' : 
+                   driver.approval_status === 'approved' ? '✅ Approved' : 
+                   '❌ Rejected'}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
@@ -224,8 +252,15 @@ const DriverPanel = () => {
                 }} />
                 <UILabel htmlFor="driver-online">{driver.is_available ? 'Online' : 'Offline'}</UILabel>
               </div>
-              <Button onClick={toggleAvailability} disabled={driver.approval_status !== 'approved'}>
-                {driver.is_available ? 'Go offline' : 'Go available'}
+              <Button 
+                onClick={toggleAvailability} 
+                disabled={driver.approval_status !== 'approved'}
+                className={driver.approval_status !== 'approved' ? 'opacity-50 cursor-not-allowed' : ''}
+              >
+                {driver.approval_status !== 'approved' 
+                  ? 'Awaiting Approval' 
+                  : (driver.is_available ? 'Go offline' : 'Go available')
+                }
               </Button>
             </div>
           </section>

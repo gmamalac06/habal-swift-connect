@@ -21,6 +21,8 @@ const Auth = () => {
   const [vehicleModel, setVehicleModel] = useState("");
   const [plateNumber, setPlateNumber] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
+  const [orDocument, setOrDocument] = useState<File | null>(null);
+  const [crDocument, setCrDocument] = useState<File | null>(null);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -65,6 +67,35 @@ const Auth = () => {
             throw new Error("Please complete all driver details.");
           }
           
+          if (!orDocument || !crDocument) {
+            throw new Error("Please upload both OR and CR documents.");
+          }
+          
+          // Upload documents to Supabase Storage
+          const orFileName = `or_${data.user.id}_${Date.now()}.pdf`;
+          const crFileName = `cr_${data.user.id}_${Date.now()}.pdf`;
+          
+          const { error: orUploadError } = await supabase.storage
+            .from('driver-documents')
+            .upload(orFileName, orDocument);
+          
+          if (orUploadError) throw new Error(`Failed to upload OR document: ${orUploadError.message}`);
+          
+          const { error: crUploadError } = await supabase.storage
+            .from('driver-documents')
+            .upload(crFileName, crDocument);
+          
+          if (crUploadError) throw new Error(`Failed to upload CR document: ${crUploadError.message}`);
+          
+          // Get public URLs for the uploaded documents
+          const { data: orUrl } = supabase.storage
+            .from('driver-documents')
+            .getPublicUrl(orFileName);
+          
+          const { data: crUrl } = supabase.storage
+            .from('driver-documents')
+            .getPublicUrl(crFileName);
+          
           // Create driver entry (pending approval)
           const { error: drvErr } = await supabase.from("drivers").insert({
             user_id: data.user.id,
@@ -72,6 +103,8 @@ const Auth = () => {
             vehicle_model: vehicleModel,
             plate_number: plateNumber,
             license_number: licenseNumber,
+            or_document_url: orUrl.publicUrl,
+            cr_document_url: crUrl.publicUrl,
             approval_status: 'pending'
           });
           if (drvErr) throw drvErr;
@@ -165,6 +198,28 @@ const Auth = () => {
                   <div className="space-y-2">
                     <Label htmlFor="license_number">License number</Label>
                     <Input id="license_number" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} required={isDriverSignup} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="or_document">Official Receipt (OR)</Label>
+                    <Input 
+                      id="or_document" 
+                      type="file" 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={e => setOrDocument(e.target.files?.[0] || null)} 
+                      required={isDriverSignup} 
+                    />
+                    <p className="text-xs text-muted-foreground">Upload your vehicle's Official Receipt document</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cr_document">Certificate of Registration (CR)</Label>
+                    <Input 
+                      id="cr_document" 
+                      type="file" 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={e => setCrDocument(e.target.files?.[0] || null)} 
+                      required={isDriverSignup} 
+                    />
+                    <p className="text-xs text-muted-foreground">Upload your vehicle's Certificate of Registration document</p>
                   </div>
                 </div>
               )}
