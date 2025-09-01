@@ -25,9 +25,28 @@ const Auth = () => {
   const [crDocument, setCrDocument] = useState<File | null>(null);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        navigate("/dashboard");
+        // Get user roles to redirect appropriately
+        try {
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id);
+          
+          const userRoles = roles?.map(r => r.role) || [];
+          
+          if (userRoles.includes("admin")) {
+            navigate("/admin");
+          } else if (userRoles.includes("driver")) {
+            navigate("/driver");
+          } else {
+            navigate("/dashboard");
+          }
+        } catch (error) {
+          // Fallback to dashboard if role lookup fails
+          navigate("/dashboard");
+        }
       }
     });
     return () => sub.subscription.unsubscribe();
@@ -39,9 +58,33 @@ const Auth = () => {
     try {
       cleanupAuthState();
       try { await supabase.auth.signOut({ scope: 'global' as any }); } catch {}
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      window.location.href = "/dashboard";
+      
+      // Get user roles to redirect appropriately
+      if (data?.user) {
+        try {
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", data.user.id);
+          
+          const userRoles = roles?.map(r => r.role) || [];
+          
+          if (userRoles.includes("admin")) {
+            window.location.href = "/admin";
+          } else if (userRoles.includes("driver")) {
+            window.location.href = "/driver";
+          } else {
+            window.location.href = "/dashboard";
+          }
+        } catch (roleError) {
+          // Fallback to dashboard if role lookup fails
+          window.location.href = "/dashboard";
+        }
+      } else {
+        window.location.href = "/dashboard";
+      }
     } catch (error: any) {
       toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     } finally {
@@ -127,6 +170,7 @@ const Auth = () => {
           }
           
           toast({ title: "Driver application submitted", description: "Await admin approval to start accepting rides." });
+          window.location.href = "/driver";
         } else {
           // Create user role as rider for regular users
           const { error: roleErr } = await supabase.from("user_roles").insert({
@@ -145,8 +189,8 @@ const Auth = () => {
           }
           
           toast({ title: "Welcome!", description: "Account created successfully." });
+          window.location.href = "/dashboard";
         }
-        window.location.href = "/dashboard";
       } else {
         toast({ title: "Check your email", description: "Confirm your email to finish sign up." });
       }

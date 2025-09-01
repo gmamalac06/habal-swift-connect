@@ -35,10 +35,14 @@ const Dashboard = () => {
     if (!loading && !session) navigate("/auth");
   }, [loading, session, navigate]);
 
-  // Redirect drivers to their panel unless they're also admins
+  // Redirect drivers and admins to their respective panels
   useEffect(() => {
-    if (!loading && session && isDriver && !isAdmin) {
-      navigate("/driver");
+    if (!loading && session) {
+      if (isAdmin) {
+        navigate("/admin");
+      } else if (isDriver) {
+        navigate("/driver");
+      }
     }
   }, [loading, session, isDriver, isAdmin, navigate]);
 
@@ -63,9 +67,18 @@ const Dashboard = () => {
     supabase
       .from("pricing_settings")
       .select("base_fare, per_km, surge_multiplier")
-      .maybeSingle?.()
-      .then((res: any) => {
-        const d = res?.data ?? res; setPricing(d);
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error loading pricing:", error);
+          // Use default pricing if not found
+          setPricing({ base_fare: 25, per_km: 10, surge_multiplier: 1 });
+        } else if (data) {
+          setPricing(data);
+        } else {
+          // No pricing data found, use defaults
+          setPricing({ base_fare: 25, per_km: 10, surge_multiplier: 1 });
+        }
       });
   }, []);
 
@@ -80,7 +93,10 @@ const Dashboard = () => {
   };
 
   const estimatedFare = useMemo(() => {
-    if (!pricing) return 0;
+    if (!pricing || !pricing.base_fare || !pricing.per_km || !pricing.surge_multiplier) {
+      // Use default values if pricing is incomplete
+      return (25 + 10 * distance) * 1;
+    }
     return (pricing.base_fare + pricing.per_km * distance) * pricing.surge_multiplier;
   }, [pricing, distance]);
 

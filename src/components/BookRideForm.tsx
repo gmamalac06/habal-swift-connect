@@ -51,14 +51,23 @@ const BookRideForm = ({ onBooked }: Props) => {
     supabase
       .from("pricing_settings")
       .select("base_fare, per_km, surge_multiplier")
-      .maybeSingle?.()
-      .then((res: any) => {
-        const d = res?.data ?? res; setPricing(d);
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error loading pricing:", error);
+          setPricing({ base_fare: 25, per_km: 10, surge_multiplier: 1 });
+        } else if (data) {
+          setPricing(data);
+        } else {
+          setPricing({ base_fare: 25, per_km: 10, surge_multiplier: 1 });
+        }
       });
   }, []);
 
   const estimatedFare = useMemo(() => {
-    if (!pricing) return 0;
+    if (!pricing || !pricing.base_fare || !pricing.per_km || !pricing.surge_multiplier) {
+      return (25 + 10 * distance) * 1;
+    }
     return (pricing.base_fare + pricing.per_km * distance) * pricing.surge_multiplier;
   }, [pricing, distance]);
 
