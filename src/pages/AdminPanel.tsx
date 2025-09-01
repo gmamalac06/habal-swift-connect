@@ -476,11 +476,11 @@ const AdminPanel = () => {
 
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-orange-700">Total Passengers</CardTitle>
+            <CardTitle className="text-orange-700">Total Commuters</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-600">{userStats.totalRiders}</div>
-            <p className="text-orange-600/70 text-sm">Registered passengers</p>
+            <p className="text-orange-600/70 text-sm">Registered commuters</p>
           </CardContent>
         </Card>
 
@@ -618,7 +618,7 @@ const AdminPanel = () => {
                           user.role === 'driver' ? 'secondary' :
                           user.role === 'rider' ? 'outline' : 'destructive'
                         }>
-                          {user.role === 'rider' ? 'passenger' : user.role}
+                          {user.role === 'rider' ? 'commuter' : user.role}
                         </Badge>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
@@ -830,7 +830,7 @@ const AdminPanel = () => {
                         selectedUser.role === 'driver' ? 'secondary' :
                         selectedUser.role === 'rider' ? 'outline' : 'destructive'
                       }>
-                        {selectedUser.role === 'rider' ? 'passenger' : selectedUser.role}
+                        {selectedUser.role === 'rider' ? 'commuter' : selectedUser.role}
                       </Badge>
                     </div>
                     <div>

@@ -13,7 +13,7 @@ const Index = () => {
               Fast, safe habal-habal rides in Cotabato City
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
-              Seamless platform for passengers, drivers, and admins. Secure bookings, transparent fares, and simple management.
+              Seamless platform for commuters, drivers, and admins. Secure bookings, transparent fares, and simple management.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth"><Button variant="hero">Get Started</Button></Link>

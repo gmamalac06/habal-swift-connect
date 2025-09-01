@@ -223,7 +223,7 @@ const Auth = () => {
                   <div className="text-xs text-muted-foreground">Includes vehicle and license details for admin approval.</div>
                 </div>
                 <button type="button" className="text-primary underline-offset-4 hover:underline" onClick={() => setIsDriverSignup(v => !v)}>
-                  {isDriverSignup ? 'Switch to passenger' : 'Switch to driver'}
+                  {isDriverSignup ? 'Switch to commuter' : 'Switch to driver'}
                 </button>
               </div>
               {isDriverSignup && (
